@@ -221,6 +221,23 @@ nav.bottom-nav button.active { color: var(--accent); }
   gap: 8px;
   margin-bottom: 14px;
 }
+
+.actions-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.actions-row .btn {
+  width: auto;
+  flex: 1;
+  padding: 11px 8px;
+  font-size: 13px;
+}
+
+.option-card {
+  cursor: pointer;
+}
+.option-card:active { transform: scale(0.99); }
 .toolbar-row input[type="search"] {
   flex: 1;
   padding: 10px 12px;
