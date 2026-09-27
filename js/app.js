@@ -185,7 +185,7 @@ function renderDashboard() {
 
     <div class="card">
       <div class="section-title">Nach Ländern</div>
-      ${barList(countries, 8)}
+      ${barList(countries)}
     </div>
 
     <div class="card">
