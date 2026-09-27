@@ -4,7 +4,7 @@
  * und sind davon unabhängig immer offline verfügbar.
  */
 
-const CACHE_NAME = "tauchlogbuch-cache-v1";
+const CACHE_NAME = "tauchlogbuch-cache-v2";
 const CORE_ASSETS = [
   "./",
   "./index.html",
