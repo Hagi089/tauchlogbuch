@@ -293,6 +293,11 @@ form.dive-form input {
   font-size: 15px;
 }
 form.dive-form input:focus { outline: 2px solid var(--accent); }
+form.dive-form input[readonly] {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: default;
+}
 
 button:focus-visible,
 input:focus-visible,
