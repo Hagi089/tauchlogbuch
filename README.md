@@ -5,14 +5,14 @@ Datenstruktur deiner bestehenden Excel-Datei (`Daten`-Blatt: TG, Datum,
 Tiefe, Dauer, Land, Ort, Tauchplatz). Läuft komplett lokal im Browser,
 speichert alle Daten in IndexedDB auf dem Gerät, kein Backend nötig.
 
-**Status:** Phasen 1–7 und 9 deiner Anforderung sind umgesetzt: Datenmodell,
-Oberfläche, Speicherung, Erfassung/Bearbeitung (manuell, per Excel-Import
-und per Spracheingabe), Dashboard/Statistiken, Excel-Export sowie das
-Löschen aller Tauchgänge. Deine 682 realen Tauchgänge aus der Excel-Datei
-sind als Startdaten enthalten. **Noch nicht enthalten**: Copy/Paste-Import
-aus der Zwischenablage und eine separate Datensicherung/-wiederherstellung
-als generische Backup-Datei (der Excel-Export deckt die Datensicherung in
-der Praxis bereits weitgehend ab) – siehe „Nächste Schritte" unten.
+**Status:** Datenmodell, Oberfläche, Speicherung, Erfassung/Bearbeitung
+(manuell, per Excel-Import, per Copy/Paste aus Excel und per Spracheingabe),
+Dashboard/Statistiken, Excel-Export, Backup/Wiederherstellung als JSON-Datei,
+eine Datenqualitätsprüfung sowie das Löschen aller Tauchgänge sind umgesetzt.
+Deine 682 realen Tauchgänge aus der Excel-Datei sind als Startdaten enthalten.
+Alle Eingabewege (Formular, Sprache, Excel-Import, Copy/Paste, Backup-Restore)
+nutzen dieselbe zentrale Validierung (`js/validation.js`), damit über keinen
+Weg ungültige Daten in die Datenbank gelangen können.
 
 ## 1. Installation
 
@@ -41,8 +41,9 @@ Danach im Browser öffnen: `http://localhost:8080`
 ## 3. Lokale Nutzung
 
 - Alle Daten liegen ausschließlich in IndexedDB **im Browser dieses
-  Geräts** – es werden keine Daten an einen Server gesendet (Ausnahme:
-  der Ladevorgang der SheetJS-Bibliothek selbst, siehe Punkt 1).
+  Geräts** – die App selbst sendet keine Tauchgangsdaten an einen Server
+  (Ausnahmen: der Ladevorgang der SheetJS-Bibliothek, siehe Punkt 1, und die
+  browsereigene Spracherkennung, siehe Punkt 5).
 - Beim allerersten Start werden automatisch deine 682 Tauchgänge aus
   `data/seed-data.json` importiert (einmalig).
 - Nach dem Schließen und erneuten Öffnen der App sind alle Änderungen
@@ -67,29 +68,56 @@ Danach im Browser öffnen: `http://localhost:8080`
 - **Manuell eingeben** – das bekannte Formular.
 - **Excel-Datei importieren** – lädt eine `.xlsx`/`.xls`-Datei mit den
   Spalten `Datum, Tiefe, Dauer, Land, Ort, Tauchplatz` (Kopfzeile nötig,
-  `TG` optional, `Anzahl TG` wird ignoriert). Vor dem Übernehmen zeigt die
-  App eine Vorschau (erkannte / neue / bereits vorhandene / fehlerhafte
-  Zeilen); bereits vorhandene Tauchgänge (gleiches Datum, gleiche Tiefe,
-  Dauer und Tauchplatz) werden automatisch übersprungen.
+  `TG` optional, `Anzahl TG` wird ignoriert). Auf derselben Seite steht
+  zusätzlich **„Zeilen aus Excel einfügen"**: markierte Zeilen aus Excel
+  kopieren und in ein Textfeld einfügen (mit oder ohne Kopfzeile, Tab- oder
+  Semikolon-getrennt) — funktioniert auch offline, ohne Dateiauswahl. Beide
+  Wege teilen sich dieselbe Vorschau (erkannte / neue / bereits vorhandene /
+  fehlerhafte Zeilen); bereits vorhandene Tauchgänge (per TG-Nummer, sonst
+  Datum + Tiefe + Dauer + Tauchplatz) werden automatisch übersprungen.
 - **Per Sprache eingeben** – nutzt die Spracherkennung des Browsers
-  (funktioniert z. B. in Chrome für Android; kostenlos, keine externe
-  KI-API, keine Datenübertragung nach außen). Sprich z. B.: „26. September
-  2026, Ägypten, Sharm El Sheikh, Far Garden, 24 Meter Tiefe, 52 Minuten".
-  Danach öffnet sich das normale Formular, vorausgefüllt mit den
-  erkannten Werten; unsicher erkannte Felder sind mit „prüfen"
+  (funktioniert z. B. in Chrome für Android; kostenlos, keine eigene
+  externe KI-API der App). **Hinweis:** Die Web-Speech-API kann je nach
+  Browser die Audioaufnahme zur Erkennung an einen Server des
+  Browser-Herstellers (z. B. Google bei Chrome) senden — die Spracheingabe
+  ist daher nicht garantiert lokal. Die App fragt die Felder
+  **einzeln nacheinander** ab (Datum, Land, Ort, Tauchplatz, Tiefe,
+  Dauer) — jede Sprachaufnahme entspricht dabei genau einem Feld, statt
+  einen ganzen Satz zu diktieren und ihn per Kommas zu zerlegen (Browser-
+  Spracherkennung liefert i. d. R. keine Satzzeichen zurück, ein
+  Freitext-Diktat wäre dadurch unzuverlässig). Nach jeder Aufnahme siehst
+  du das erkannte Ergebnis und kannst es bei Bedarf wiederholen. Am Ende
+  öffnet sich das normale Formular, vorausgefüllt mit allen erfassten
+  Werten; unsicher erkannte Felder sind mit „unsicher"/„prüfen"
   gekennzeichnet. Gespeichert wird erst nach deiner Bestätigung.
 
-## 6. Excel-Export & alle Tauchgänge löschen
+## 6. Reiter „Daten": Backup, Excel & Datenqualität
 
-Im Bereich **„Tauchgänge"** stehen zwei zusätzliche Aktionen:
+Im vierten Reiter **„Daten"** (💾) findest du:
 
+- **💾 Backup erstellen / wiederherstellen** – eine generische, vollständige
+  Sicherung des App-Zustands als JSON-Datei (alle Tauchgänge inkl. interner
+  IDs, Seed-Version, Theme) — zusätzlich zum Excel-Export, z. B. für einen
+  1:1-Gerätewechsel oder zum Zusammenführen von Smartphone und Tablet. Beim
+  Wiederherstellen zeigt die App zuerst eine Vorschau und lässt dich zwischen
+  **Zusammenführen** (fehlende Tauchgänge ergänzen, nichts überschreiben) und
+  **Ersetzen** (kompletter Bestand wird 1:1 durch die Sicherung ersetzt, mit
+  optionalem Sicherheits-Backup davor) wählen. Der Vorgang läuft in einer
+  einzigen Datenbank-Transaktion: entweder wird alles übernommen, oder gar
+  nichts geändert. Solange kein Backup existiert bzw. das letzte länger als
+  30 Tage her ist, erscheint im Dashboard ein Hinweis-Banner.
 - **⬇️ Als Excel exportieren** – erzeugt eine `.xlsx`-Datei mit der
   ursprünglichen Spaltenstruktur (inkl. live berechneter „Anzahl TG"),
-  sortiert wie im Original nach Datum/TG-Nummer.
-- **🗑️ Alle löschen** – löscht sämtliche gespeicherten Tauchgänge nach
-  einer ausdrücklichen Sicherheitsabfrage. Das kann nicht rückgängig
-  gemacht werden; exportiere vorher als Excel, falls du die Daten
-  behalten möchtest.
+  sortiert wie im Original nach Datum/TG-Nummer. Das ist ein **Datenexport
+  der 8 Spalten, kein vollständiges Backup** des App-Zustands (siehe oben).
+- **🔍 Daten prüfen** – eine Datenqualitätsprüfung, die alle gespeicherten
+  Tauchgänge auf ungültige IDs/Daten, negative oder fehlende Werte,
+  doppelte TG-Nummern sowie fehlende Tauchplätze prüft und auffällige
+  Einträge direkt zum Bearbeiten verlinkt.
+
+Das Löschen aller Tauchgänge bleibt im Reiter **„Tauchgänge"** (🗑️ Alle
+löschen) — nach einer ausdrücklichen Sicherheitsabfrage; erstelle vorher
+ein Backup, falls du die Daten behalten möchtest.
 
 ## 7. Dark Mode
 
@@ -105,11 +133,14 @@ Projektstruktur:
 tauchlogbuch-app/
 ├── index.html          Grundgerüst, Bottom-Navigation, SheetJS-Einbindung
 ├── manifest.webmanifest PWA-Manifest
-├── service-worker.js    Offline-Caching des App-Gerüsts (Cache-Version v2)
+├── service-worker.js    Offline-Caching des App-Gerüsts (Cache-Version v4)
 ├── css/styles.css       Design (helle/dunkle Farbvariablen)
-├── js/db.js             IndexedDB-Speicherschicht
+├── js/validation.js      Zentrale Validierung (Formular, Sprache, Excel,
+│                          Copy/Paste, Backup-Restore) & Duplikat-Erkennung
+├── js/db.js             IndexedDB-Speicherschicht (nutzt js/validation.js)
 ├── js/dashboard.js       KPI- und Diagramm-Berechnungen
-├── js/app.js             UI-Logik: Formulare, Excel-Import/-Export, Sprache
+├── js/app.js             UI-Logik: Formulare, Excel-Import/-Export & Copy/
+│                          Paste, Sprache, Backup/Restore, Datenqualität
 ├── data/seed-data.json   Deine 682 realen Tauchgänge (Erstimport)
 └── icons/                App-Icons (192px, 512px)
 ```
@@ -120,17 +151,36 @@ Datenmodell je Tauchgang (`js/db.js`, Objektspeicher `dives`):
 { id, tgNumber, date, depth, duration, country, location, site }
 ```
 
-Hinweis: Wenn du künftig `index.html`, `css/styles.css`, `js/app.js` oder
-`service-worker.js` änderst, erhöhe in `service-worker.js` die
-`CACHE_NAME`-Versionsnummer (z. B. `v2` → `v3`) — sonst liefert der
-Service Worker bei wiederkehrenden Besuchen weiter die alten,
-zwischengespeicherten Dateien aus.
+Hinweise zur Wartung:
+
+- **Service Worker:** App-Dateien (HTML/CSS/JS) werden „Network-first"
+  geladen — bei Internet bekommst du immer den neuesten Stand, offline
+  greift der zwischengespeicherte. Das Erhöhen von `CACHE_NAME` (aktuell
+  `v4`) ist nur noch zum Aufräumen alter Cache-Einträge nötig.
+- **Validierung:** `validateDive()` in `js/validation.js` prüft Datum
+  (echtes Kalenderdatum), Tiefe/Dauer (Zahl ≥ 0) und Pflichtangaben (Land,
+  Ort; Tauchplatz ist optional, da in der Original-Excel teils leer)
+  zentral für manuelle Eingabe, Sprache, Excel-Import, Copy/Paste-Import
+  und Backup-Wiederherstellung. `js/db.js` validiert vor jedem Schreiben
+  zusätzlich selbst (`assertValidDive`), damit kein Weg — auch nicht ein
+  künftiger — diese Prüfung umgehen kann.
+- **Startdaten:** `CURRENT_SEED_VERSION` in `js/app.js` erhöhen, wenn
+  `data/seed-data.json` erweitert wird. Nachgeladen werden nur fehlende
+  IDs — vorhandene/bearbeitete Tauchgänge werden nie überschrieben.
+- **Datenbank-Schema:** Änderungen am Datenmodell als neuer
+  `if (oldVersion < N)`-Block in `js/db.js` ergänzen und `DB_VERSION` erhöhen.
+- **Excel offline:** SheetJS wird vom CDN geladen. Für Offline-Betrieb die
+  Datei `xlsx.full.min.js` (Version 0.18.5) herunterladen, als
+  `js/vendor/xlsx.full.min.js` ins Projekt legen, in `index.html` den
+  `<script>`-Pfad darauf ändern und den Pfad in `service-worker.js` zu
+  `STATIC_ASSETS` hinzufügen.
 
 ## Nächste Schritte (auf Wunsch)
 
-- **Copy/Paste-Import** aus der Excel-Zwischenablage (Tabulator-getrennter
-  Text direkt einfügen, ohne Datei-Upload)
-- **Generische Datensicherung/-wiederherstellung** als JSON-Datei
-  (zusätzlich zum Excel-Export, z. B. für einen 1:1-Gerätewechsel)
+- **Sync zwischen mehreren Geräten** (über Backup/Restore hinaus)
+- **SheetJS offline bündeln** (siehe Hinweis oben zu „Excel offline")
+- **Migration auf „Network First"** für den Service Worker war bereits
+  nötig und ist umgesetzt; weitere Schema-Migrationen folgen dem
+  vorbereiteten `if (oldVersion < N)`-Gerüst in `js/db.js`.
 
-Sag einfach Bescheid, welche davon als Nächstes umgesetzt werden soll.
+Sag einfach Bescheid, was als Nächstes umgesetzt werden soll.
