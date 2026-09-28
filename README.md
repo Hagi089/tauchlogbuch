@@ -65,10 +65,12 @@ Danach im Browser öffnen: `http://localhost:8080`
 
 Über den Reiter **„Neu"** öffnet sich eine Auswahl:
 
-- **Manuell eingeben** – das bekannte Formular.
+- **Manuell eingeben** – das bekannte Formular. Die TG-Nummer wird dabei
+  nirgends eingegeben: Sie wird immer automatisch als „aktuelle Anzahl
+  Tauchgänge + 1" berechnet und nur schreibgeschützt (read-only) angezeigt.
 - **Excel-Datei importieren** – lädt eine `.xlsx`/`.xls`-Datei mit den
   Spalten `Datum, Tiefe, Dauer, Land, Ort, Tauchplatz` (Kopfzeile nötig,
-  `TG` optional, `Anzahl TG` wird ignoriert). Auf derselben Seite steht
+  `TG` optional). Auf derselben Seite steht
   zusätzlich **„Zeilen aus Excel einfügen"**: markierte Zeilen aus Excel
   kopieren und in ein Textfeld einfügen (mit oder ohne Kopfzeile, Tab- oder
   Semikolon-getrennt) — funktioniert auch offline, ohne Dateiauswahl. Beide
@@ -106,10 +108,12 @@ Im vierten Reiter **„Daten"** (💾) findest du:
   einzigen Datenbank-Transaktion: entweder wird alles übernommen, oder gar
   nichts geändert. Solange kein Backup existiert bzw. das letzte länger als
   30 Tage her ist, erscheint im Dashboard ein Hinweis-Banner.
-- **⬇️ Als Excel exportieren** – erzeugt eine `.xlsx`-Datei mit der
-  ursprünglichen Spaltenstruktur (inkl. live berechneter „Anzahl TG"),
-  sortiert wie im Original nach Datum/TG-Nummer. Das ist ein **Datenexport
-  der 8 Spalten, kein vollständiges Backup** des App-Zustands (siehe oben).
+- **⬇️ Als Excel exportieren** – erzeugt eine `.xlsx`-Datei mit den Spalten
+  `TG, Datum, Tiefe, Dauer, Land, Ort, Tauchplatz`, sortiert wie im Original
+  nach Datum/TG-Nummer. Das ist ein **Datenexport der 7 Spalten, kein
+  vollständiges Backup** des App-Zustands (siehe oben). Die Aktion steht nur
+  hier unter „Daten"; im Reiter „Tauchgänge" gibt es sie bewusst nicht mehr
+  doppelt.
 - **🔍 Daten prüfen** – eine Datenqualitätsprüfung, die alle gespeicherten
   Tauchgänge auf ungültige IDs/Daten, negative oder fehlende Werte,
   doppelte TG-Nummern sowie fehlende Tauchplätze prüft und auffällige
@@ -150,6 +154,10 @@ Datenmodell je Tauchgang (`js/db.js`, Objektspeicher `dives`):
 ```js
 { id, tgNumber, date, depth, duration, country, location, site }
 ```
+
+`tgNumber` wird nie vom Nutzer erfasst, sondern beim Anlegen automatisch
+als aktuelle Anzahl Tauchgänge + 1 vergeben (und danach unverändert
+mitgeführt).
 
 Hinweise zur Wartung:
 
