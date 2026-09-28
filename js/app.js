@@ -57,9 +57,11 @@ function toast(msg) {
   setTimeout(() => t.remove(), 2600);
 }
 
+// Die TG-Nummer wird nie manuell erfasst, sondern immer automatisch aus der
+// aktuellen Anzahl gespeicherter Tauchgänge berechnet (Anzahl + 1) und nur
+// read-only angezeigt.
 function nextTgNumber() {
-  const nums = state.dives.map((d) => Number(d.tgNumber) || 0);
-  return nums.length ? Math.max(...nums) + 1 : 1;
+  return state.dives.length + 1;
 }
 
 // Validierung/Duplikat-Schlüssel liegen zentral in js/validation.js und werden
@@ -283,12 +285,11 @@ function renderList() {
   const allCountries = [...new Set(state.dives.map((d) => d.country).filter(Boolean))].sort();
 
   const listHtml = dives.length ? dives.map((d) => {
-    const sameDayCount = window.Dashboard.divesOnSameDay(d, state.dives);
     return `
     <div class="dive-list-item" data-id="${escapeHtml(d.id)}">
       <div class="main">
         <div class="site">${escapeHtml(d.site || "Ohne Tauchplatz")}</div>
-        <div class="meta">${formatDate(d.date)} · ${escapeHtml(d.location || "")}, ${escapeHtml(d.country || "")}${sameDayCount > 1 ? ` · TG ${sameDayCount}/Tag` : ""}</div>
+        <div class="meta">${formatDate(d.date)} · ${escapeHtml(d.location || "")}, ${escapeHtml(d.country || "")}</div>
       </div>
       <div class="stats">
         <div class="depth">${d.depth ?? "–"} m</div>
@@ -307,7 +308,6 @@ function renderList() {
     </div>
     ${state.dives.length ? `
     <div class="actions-row">
-      <button type="button" id="export-excel-btn" class="btn btn-secondary">⬇️ Als Excel exportieren</button>
       <button type="button" id="delete-all-btn" class="btn btn-danger">🗑️ Alle löschen</button>
     </div>` : ""}
     <div>${listHtml}</div>
@@ -324,9 +324,6 @@ function renderList() {
   els.main.querySelectorAll(".dive-list-item").forEach((el) => {
     el.addEventListener("click", () => openDiveForm(el.dataset.id));
   });
-
-  const exportBtn = document.getElementById("export-excel-btn");
-  if (exportBtn) exportBtn.addEventListener("click", exportToExcel);
 
   const deleteAllBtn = document.getElementById("delete-all-btn");
   if (deleteAllBtn) {
@@ -354,7 +351,7 @@ function exportToExcel() {
     toast("Die Excel-Bibliothek ist nicht geladen. Bitte Internetverbindung prüfen und erneut versuchen.");
     return;
   }
-  const rows = [["TG", "Datum", "Anzahl TG", "Tiefe", "Dauer", "Land", "Ort", "Tauchplatz"]];
+  const rows = [["TG", "Datum", "Tiefe", "Dauer", "Land", "Ort", "Tauchplatz"]];
   const sorted = [...state.dives].sort((a, b) => {
     if (a.date !== b.date) return (a.date || "").localeCompare(b.date || "");
     return (a.tgNumber || 0) - (b.tgNumber || 0);
@@ -363,7 +360,6 @@ function exportToExcel() {
     rows.push([
       d.tgNumber ?? "",
       formatDate(d.date),
-      window.Dashboard.divesOnSameDay(d, state.dives),
       d.depth,
       d.duration,
       d.country,
@@ -443,7 +439,7 @@ function renderExcelImport() {
       <div class="section-title">Excel-Datei importieren</div>
       <p style="color:var(--text-muted);font-size:13px;margin-top:0">
         Erwartete Spalten in der Kopfzeile: <b>Datum, Tiefe, Dauer, Land, Ort, Tauchplatz</b>
-        (optional: TG). Die Spalte „Anzahl TG" wird nicht benötigt — sie wird automatisch berechnet.
+        (optional: TG).
       </p>
       <input type="file" id="excel-file-input" accept=".xlsx,.xls">
     </div>
@@ -453,8 +449,9 @@ function renderExcelImport() {
       <p style="color:var(--text-muted);font-size:13px;margin-top:0">
         In Excel die Zeilen markieren, kopieren und hier einfügen — mit oder ohne Kopfzeile.
         Ohne Kopfzeile gilt die Spaltenreihenfolge deines Logbuchs
-        (TG, Datum, Anzahl TG, Tiefe, Dauer, Land, Ort, Tauchplatz),
-        alternativ ohne „Anzahl TG" oder ohne TG-Spalten.
+        (TG, Datum, Tiefe, Dauer, Land, Ort, Tauchplatz — eine ggf. vorhandene
+        vierte Spalte mit der Tauchgangsanzahl pro Tag wird automatisch erkannt
+        und übersprungen), alternativ ohne TG-Spalte.
         Dieser Weg funktioniert auch offline.
       </p>
       <textarea id="paste-input" class="paste-area" rows="6" spellcheck="false"
@@ -860,7 +857,7 @@ function renderForm() {
       </datalist>
 
       <label for="f-tg">TG-Nummer</label>
-      <input type="number" id="f-tg" step="1" min="1" value="${escapeHtml(d.tgNumber ?? "")}">
+      <input type="text" id="f-tg" value="${escapeHtml(editing ? (d.tgNumber ?? "–") : nextTgNumber())}" readonly tabindex="-1" aria-readonly="true">
 
       <div class="btn-row">
         <button type="submit" class="btn btn-primary">Speichern</button>
@@ -899,9 +896,10 @@ async function saveDiveFromForm(editing) {
   const country = document.getElementById("f-country").value.trim();
   const location = document.getElementById("f-location").value.trim();
   const site = document.getElementById("f-site").value.trim();
-  const tgRaw = document.getElementById("f-tg").value;
-  const parsedTg = tgRaw ? Number.parseInt(tgRaw, 10) : null;
-  const tgNumber = (parsedTg !== null && Number.isFinite(parsedTg)) ? parsedTg : null;
+  // TG-Nummer wird nie aus dem (read-only) Feld übernommen, sondern automatisch
+  // vergeben: beim Bearbeiten bleibt die vorhandene Nummer, bei neuen
+  // Tauchgängen ist es die aktuelle Anzahl Tauchgänge + 1.
+  const tgNumber = editing ? (editing.tgNumber ?? null) : nextTgNumber();
 
   const dive = {
     id: editing ? editing.id : window.DiveDB.generateId(),

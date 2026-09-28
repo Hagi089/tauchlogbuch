@@ -10,8 +10,6 @@
  *   Tauchzeit (min/h/Tage) = SUM(Dauer) und Umrechnungen
  *   Ø Tauchzeit pro TG     = SUM(Dauer) / Anzahl Tauchgänge
  *   Längster TG            = MAX(Dauer)
- * "Anzahl TG pro Tag" wird bewusst nicht gespeichert, sondern hier live
- * aus der Anzahl der Einträge je Datum berechnet (siehe Analyse-Notizen).
  */
 
 function computeStats(dives) {
@@ -117,12 +115,6 @@ function computeTopSites(dives, limit = 5) {
     .slice(0, limit);
 }
 
-// Wie viele Tauchgänge gab es am selben Datum wie dieser Tauchgang?
-// Ersetzt die frühere manuelle Spalte "Anzahl TG".
-function divesOnSameDay(dive, allDives) {
-  return allDives.filter((d) => d.date === dive.date).length;
-}
-
 window.Dashboard = {
   computeStats,
   computeDepthBuckets,
@@ -130,5 +122,4 @@ window.Dashboard = {
   computeCountryCounts,
   computeYearCounts,
   computeTopSites,
-  divesOnSameDay,
 };
