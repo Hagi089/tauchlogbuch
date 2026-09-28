@@ -24,9 +24,14 @@ function computeStats(dives) {
     };
   }
   const uniqueDates = new Set(dives.map((d) => d.date));
-  const totalMinutes = dives.reduce((s, d) => s + (Number(d.duration) || 0), 0);
-  const maxDepth = Math.max(...dives.map((d) => Number(d.depth) || 0));
-  const maxDuration = Math.max(...dives.map((d) => Number(d.duration) || 0));
+  // Ungültige/beschädigte Werte (z. B. depth = "abc") werden aus den
+  // Aggregaten ausgeschlossen statt sie stillschweigend als 0 zu behandeln —
+  // sonst würde ein Datenfehler wie ein echter 0-m-Tauchgang aussehen.
+  const validDurations = dives.map((d) => Number(d.duration)).filter((v) => Number.isFinite(v));
+  const validDepths = dives.map((d) => Number(d.depth)).filter((v) => Number.isFinite(v));
+  const totalMinutes = validDurations.reduce((s, v) => s + v, 0);
+  const maxDepth = validDepths.length ? Math.max(...validDepths) : 0;
+  const maxDuration = validDurations.length ? Math.max(...validDurations) : 0;
   const lastDate = dives.reduce((max, d) => (d.date > max ? d.date : max), dives[0].date);
 
   return {
@@ -38,7 +43,7 @@ function computeStats(dives) {
     totalMinutes,
     totalHours: Math.round((totalMinutes / 60) * 100) / 100,
     totalDaysUnderwater: Math.round((totalMinutes / 60 / 24) * 100) / 100,
-    avgDuration: Math.round((totalMinutes / total) * 100) / 100,
+    avgDuration: validDurations.length ? Math.round((totalMinutes / validDurations.length) * 100) / 100 : 0,
     maxDuration,
   };
 }
