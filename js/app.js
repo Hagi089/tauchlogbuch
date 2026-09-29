@@ -438,8 +438,9 @@ function renderExcelImport() {
     <div class="card">
       <div class="section-title">Excel-Datei importieren</div>
       <p style="color:var(--text-muted);font-size:13px;margin-top:0">
-        Erwartete Spalten in der Kopfzeile: <b>Datum, Tiefe, Dauer, Land, Ort, Tauchplatz</b>
-        (optional: TG).
+        Erwartete Spalten in der Kopfzeile: <b>Datum, Tiefe, Dauer, Land, Ort, Tauchplatz</b>.
+        Eine vorhandene Spalte „TG" wird ignoriert — die TG-Nummer wird beim Import
+        immer automatisch und fortlaufend vom System vergeben.
       </p>
       <input type="file" id="excel-file-input" accept=".xlsx,.xls">
     </div>
@@ -451,7 +452,8 @@ function renderExcelImport() {
         Ohne Kopfzeile gilt die Spaltenreihenfolge deines Logbuchs
         (TG, Datum, Tiefe, Dauer, Land, Ort, Tauchplatz — eine ggf. vorhandene
         vierte Spalte mit der Tauchgangsanzahl pro Tag wird automatisch erkannt
-        und übersprungen), alternativ ohne TG-Spalte.
+        und übersprungen), alternativ ohne TG-Spalte. Eine vorhandene TG-Spalte
+        wird in jedem Fall ignoriert — die TG-Nummer wird automatisch vergeben.
         Dieser Weg funktioniert auch offline.
       </p>
       <textarea id="paste-input" class="paste-area" rows="6" spellcheck="false"
@@ -480,18 +482,6 @@ function renderExcelImport() {
       toast("Zwischenablage nicht lesbar – bitte manuell in das Feld einfügen.");
     }
   });
-}
-
-// TG-Nummer streng prüfen: nur positive ganze Zahlen ("12abc" ist ungültig, kein NaN).
-function parseTgCell(raw) {
-  if (raw === null || raw === undefined || raw === "") return { value: null, invalid: false };
-  if (typeof raw === "number") {
-    return Number.isInteger(raw) && raw > 0 ? { value: raw, invalid: false } : { value: null, invalid: true };
-  }
-  const s = String(raw).trim();
-  if (s === "") return { value: null, invalid: false };
-  if (/^\d+$/.test(s) && parseInt(s, 10) > 0) return { value: parseInt(s, 10), invalid: false };
-  return { value: null, invalid: true };
 }
 
 // Tabellentext (aus der Zwischenablage) in Zeilen/Zellen zerlegen; unterstützt
@@ -570,9 +560,13 @@ function prepareImportRows(rows) {
     if (isEmptyRow(row)) continue;
     const cell = (k) => (idx[k] >= 0 ? row[idx[k]] : null);
     const text = (k) => { const v = cell(k); return v === null || v === undefined ? "" : String(v).trim(); };
-    const tg = parseTgCell(cell("tg"));
+    // TG-Nummer wird beim Import NIE aus der Quelle übernommen (auch wenn eine
+    // Spalte "TG" vorhanden ist oder Werte enthält) – sie wird beim Bestätigen
+    // des Imports automatisch und fortlaufend vom System vergeben, genau wie
+    // bei der manuellen Eingabe. Nur beim Backup/Restore werden TG-Nummern aus
+    // den Quelldaten übernommen.
     const candidate = {
-      tgNumber: tg.value,
+      tgNumber: null,
       date: parseDateCell(cell("date")),
       depth: parseNumberCell(cell("depth")),
       duration: parseNumberCell(cell("duration")),
@@ -583,9 +577,8 @@ function prepareImportRows(rows) {
     const check = validateDive(candidate);
     const rowNo = r + 1;
     if (!check.valid) { errors.push({ row: rowNo, reasons: check.errors }); continue; }
-    if (tg.invalid) warnings.push({ row: rowNo, text: `TG-Nummer „${cell("tg")}" ungültig – Tauchgang wird ohne TG-Nummer importiert` });
     check.warnings
-      .filter((w) => w !== "Tauchplatz fehlt" && !w.startsWith("TG-Nummer"))
+      .filter((w) => w !== "Tauchplatz fehlt")
       .forEach((w) => warnings.push({ row: rowNo, text: w }));
     parsed.push(candidate);
   }
@@ -664,7 +657,12 @@ function renderImportPreview() {
   if (btn) {
     btn.addEventListener("click", async () => {
       try {
-        const withIds = p.newRows.map((r) => ({ id: window.DiveDB.generateId(), ...r }));
+        // TG-Nummern werden erst jetzt, beim tatsächlichen Import, fortlaufend
+        // vom System vergeben (an den aktuellen Bestand anschließend) – nicht
+        // schon in der Vorschau, damit ein zwischenzeitlich manuell
+        // angelegter Tauchgang nicht zu einer Lücke/Kollision führt.
+        let nextTg = nextTgNumber();
+        const withIds = p.newRows.map((r) => ({ id: window.DiveDB.generateId(), ...r, tgNumber: nextTg++ }));
         await window.DiveDB.putDivesBulk(withIds);
         await loadDives();
         toast(`${withIds.length} Tauchgänge importiert`);
