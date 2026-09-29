@@ -75,8 +75,16 @@ Danach im Browser öffnen: `http://localhost:8080`
   kopieren und in ein Textfeld einfügen (mit oder ohne Kopfzeile, Tab- oder
   Semikolon-getrennt) — funktioniert auch offline, ohne Dateiauswahl. Beide
   Wege teilen sich dieselbe Vorschau (erkannte / neue / bereits vorhandene /
-  fehlerhafte Zeilen); bereits vorhandene Tauchgänge (per TG-Nummer, sonst
-  Datum + Tiefe + Dauer + Tauchplatz) werden automatisch übersprungen.
+  fehlerhafte Zeilen); bereits vorhandene Tauchgänge werden per
+  Datum + Tiefe + Dauer + Tauchplatz erkannt und automatisch übersprungen.
+  Eine ggf. vorhandene `TG`-Spalte in der Quelle wird beim Import **immer
+  ignoriert** — die TG-Nummer wird für jeden importierten Tauchgang genau wie
+  bei der manuellen Eingabe automatisch und fortlaufend vom System vergeben
+  (erst beim endgültigen Bestätigen des Imports, nicht schon in der
+  Vorschau). Das gilt nur für den Excel-/Copy-Paste-Import: Beim
+  **Backup-Restore** (Abschnitt „Daten") werden die TG-Nummern aus der
+  Backup-Datei unverändert übernommen, da ein Backup den vollständigen,
+  bereits konsistenten Datenbestand darstellt.
 - **Per Sprache eingeben** – nutzt die Spracherkennung des Browsers
   (funktioniert z. B. in Chrome für Android; kostenlos, keine eigene
   externe KI-API der App). **Hinweis:** Die Web-Speech-API kann je nach
