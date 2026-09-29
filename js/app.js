@@ -235,6 +235,11 @@ function renderDashboard() {
     </div>
 
     <div class="card">
+      <div class="section-title">Top 5 Tauchplätze</div>
+      ${barList(topSites)}
+    </div>
+
+    <div class="card">
       <div class="section-title">Verteilung nach Tiefe</div>
       ${barList(depthBuckets)}
     </div>
@@ -242,11 +247,6 @@ function renderDashboard() {
     <div class="card">
       <div class="section-title">Verteilung nach Tauchzeit</div>
       ${barList(durationBuckets)}
-    </div>
-
-    <div class="card">
-      <div class="section-title">Top 5 Tauchplätze</div>
-      ${barList(topSites)}
     </div>
 
     <div class="card">
